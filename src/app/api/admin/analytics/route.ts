@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET() {
   try {
     const user = await getCurrentUser();
-    if (!user?.roles.some((r) => r.role === "admin")) {
+
+    if (!user?.roles.some((r: { role: string }) => r.role === "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -46,7 +47,14 @@ export async function GET() {
         pendingVendors,
         pendingRiders,
       },
-      recentOrders: recentOrders.map((o) => ({
+
+      recentOrders: recentOrders.map((o: { 
+        id: string; 
+        status: string; 
+        total: number; 
+        buyer: { name: string }; 
+        createdAt: Date 
+      }) => ({
         id: o.id,
         status: o.status,
         total: o.total,
