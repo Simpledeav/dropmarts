@@ -1,0 +1,659 @@
+================================================================================
+MULTI-VENDOR MARKETPLACE PLATFORM — PRODUCTION BUILD PLAN
+Buyers | Sellers | Riders | OpenBox Package Lockers
+================================================================================
+Prepared as: Product Requirements + Architecture + UI/UX + Roadmap documentation
+Design reference: https://www.emarts.ng/en (layout/navigation inspiration only —
+this system is a distinct, more modern, premium visual product)
+Brand colors: Yellow, Green, Purple
+
+
+================================================================================
+0. EXECUTIVE SUMMARY
+================================================================================
+This document defines a production-track, multi-sided marketplace connecting
+four user types — Buyers, Sellers (Vendors), Riders, and the OpenBox parcel-
+locker network — under one platform. It is written so engineering can start
+building directly from it: data model, API surface, page inventory, and phased
+delivery plan are all specified at implementation-ready detail.
+
+Design direction takes E-Marts' overall shape (hero banner, category-first
+navigation, card-based catalog, simple multi-step checkout) as a structural
+reference point, then modernizes it: more whitespace, smoother motion,
+real-time status wherever the data justifies it, and a distinct visual
+identity built on Yellow / Green / Purple rather than copying any existing
+site's look.
+
+MVP scope (what ships first):
+  - Fully functional buyer marketplace (browse, search, categories, PDP, cart,
+    checkout, order tracking)
+  - Seller onboarding + dashboard + product upload + inventory (mock/generated
+    data acceptable where a real backend integration is pending)
+  - Rider onboarding + dispatch dashboard + delivery requests + live tracking
+    UI (prototype-grade simulation is acceptable for tracking)
+  - OpenBox button/page as a forward-compatible placeholder
+  - An architecture that already has an admin role and expansion points wired
+    in, even if the full admin console ships later
+
+
+================================================================================
+1. PROJECT ARCHITECTURE
+================================================================================
+
+1.1 Architectural style
+--------------------------------------------------------------------------
+Modular monolith at MVP, structured so it can be split into services later
+without a rewrite. Each domain module (Catalog, Orders, Vendors, Riders,
+Dispatch, Users/Auth, Notifications, Lockers) owns its own database schema/
+tables and exposes a clean internal interface, even while running in one
+deployable app. This gets you to market fast without painting yourself into
+a "big ball of mud."
+
+Suggested extraction order when scale demands it (12-24 months out):
+  1. Notifications/real-time layer (websocket load scales independently)
+  2. Dispatch/Tracking (has the heaviest real-time + geospatial load)
+  3. Catalog/Search (benefits from a dedicated search engine early anyway)
+
+1.2 High-level system diagram (textual)
+--------------------------------------------------------------------------
+  [Web App - Next.js]      [Mobile-web / PWA]
+            \                    /
+             \                  /
+            [API Gateway / BFF layer]
+                       |
+   -------------------------------------------------
+   |         |          |          |         |      |
+ Auth     Catalog    Orders    Vendors    Riders  Lockers
+ Service  Service    Service   Service    Service  Service
+   |         |          |          |         |      |
+   -------------------------------------------------
+                       |
+              [Postgres primary DB]
+                       |
+        [Redis: cache + pub/sub for live tracking]
+                       |
+        [Object storage: product/vendor images]
+                       |
+        [Search index: product/vendor search]
+                       |
+        [Message queue: async jobs - emails, payouts,
+                 dispatch matching, notifications]
+
+1.3 Core technology recommendation
+--------------------------------------------------------------------------
+  Frontend        Next.js (React), TypeScript, Tailwind CSS
+  Mobile path     Same Next.js app as responsive PWA first; React Native
+                  later if native apps are required for riders especially
+                  (background GPS access is much better on native)
+  Backend         Node.js (NestJS) — modular by design, matches the module
+                  boundaries above, strong TypeScript support end-to-end
+  Database        PostgreSQL (primary), Redis (cache, sessions, live
+                  location pub/sub)
+  Search          Postgres full-text to start; Meilisearch or Typesense
+                  when catalog size/complexity grows
+  File storage    S3-compatible object storage (AWS S3 / Cloudflare R2)
+  Real-time       WebSockets (Socket.IO or native ws) for dispatch/tracking;
+                  Server-Sent Events acceptable for simpler one-way status
+                  updates (order status)
+  Auth            JWT-based, role-claims embedded, refresh-token rotation
+  Payments        Paystack/Flutterwave (Nigeria-first), abstracted behind
+                  a PaymentProvider interface so a second provider can be
+                  added without touching order logic
+  Maps            Mapbox GL JS (better custom styling control than Google
+                  Maps for a premium look) or Google Maps JS SDK
+  Hosting         Vercel (frontend) + managed containers (Render/Fly.io/AWS
+                  ECS) for API + managed Postgres (Neon/RDS/Supabase)
+  Monitoring      Sentry (errors), a metrics/log stack (Grafana/Loki or
+                  hosted equivalent) before public launch
+
+1.4 Environments
+--------------------------------------------------------------------------
+  local -> staging -> production, each with isolated DB, isolated payment
+  provider keys (test vs live), and feature flags to allow dark-launching
+  vendor/rider portals independently of the buyer storefront.
+
+
+================================================================================
+2. USER ROLES AND PERMISSIONS
+================================================================================
+
+  Role      Access summary
+  --------  ---------------------------------------------------------------
+  Buyer     Browse, search, purchase, track own orders, review products,
+            manage own profile/addresses/payment methods.
+
+  Vendor    Everything Buyer can do as a customer, PLUS: vendor dashboard,
+            product CRUD (own products only), inventory management, view/
+            fulfil own incoming orders, view own sales analytics, manage
+            own payout details. Cannot see other vendors' data.
+
+  Rider     Rider dashboard, view/accept/decline dispatch requests within
+            their coverage area, update delivery status, live location
+            broadcast during an active job. Cannot access vendor or buyer
+            account data beyond what's needed for a given delivery
+            (recipient name/address/phone for the active job only).
+
+  Admin     Full platform oversight: approve/reject vendor and rider
+            applications, moderate catalog listings, manage categories,
+            view platform-wide analytics, handle disputes/refunds, manage
+            featured placements/promotions, configure OpenBox locker
+            locations, impersonate-for-support (audited) if needed.
+
+  Support   (optional sub-role of Admin, scoped) order lookup, refund
+            initiation, chat with buyers/vendors/riders — no catalog or
+            payout configuration rights.
+
+Permission model:
+  - Role-based access control (RBAC) at the API layer — every endpoint
+    declares required role(s); enforced centrally, not per-handler ad hoc.
+  - Resource-level ownership checks layered on top of role (e.g. a Vendor
+    role can hit PATCH /products/:id only if products.vendor_id matches
+    their own vendor record).
+  - A user can hold multiple roles conceptually (a buyer can also become a
+    vendor) — model roles as a join table (user_roles), not a single enum
+    column, so this is possible without a schema change later.
+
+
+================================================================================
+3. COMPLETE PAGE / SITE MAP
+================================================================================
+
+PUBLIC / BUYER-FACING
+--------------------------------------------------------------------------
+  /                          Home — hero, category rail, featured rails,
+                             "how it works," trust badges, footer
+  /market                    Full catalog browse, filters + sort
+  /market/:category          Category-scoped browse
+  /search?q=                 Search results (filters: category, price,
+                             vendor, rating, availability)
+  /product/:id               Product detail page (PDP)
+  /shop/:vendorId            Public vendor storefront page
+  /cart                      Cart
+  /checkout                  Checkout (address, delivery method incl.
+                             OpenBox pickup, payment, review, confirm)
+  /order-confirmation/:id    Post-purchase confirmation
+  /orders                    Buyer's order history
+  /orders/:id                Order detail + live tracking view
+  /account                   Profile, addresses, payment methods, saved
+                             items/wishlist
+  /login, /signup, /forgot-password, /reset-password
+  /openbox                   OpenBox info/landing page (locker map,
+                             "how it works," "use OpenBox at checkout" CTA)
+  /about, /faq, /contact, /terms, /privacy
+
+VENDOR PORTAL  (/vendor/*)  — visually shifts into "operator mode" (purple)
+--------------------------------------------------------------------------
+  /vendor/onboarding         Multi-step: business info -> documents ->
+                             payout details -> review -> pending approval
+  /vendor/dashboard          Sales snapshot, recent orders, low-stock
+                             alerts, quick actions
+  /vendor/products           Product list (table/grid), search/filter
+  /vendor/products/new       Product upload form
+  /vendor/products/:id/edit  Edit product
+  /vendor/products/bulk      Bulk CSV upload
+  /vendor/inventory          Stock levels, quick stock adjust, SKU status
+  /vendor/orders             Incoming orders for this vendor
+  /vendor/orders/:id         Order detail, mark ready-for-pickup
+  /vendor/analytics          Sales over time, top products (can start on
+                             generated data, same shape as real analytics)
+  /vendor/settings           Payout info, notification preferences, store
+                             profile (banner, description)
+
+RIDER PORTAL  (/rider/*)  — also "operator mode" (purple)
+--------------------------------------------------------------------------
+  /rider/onboarding          Personal details -> vehicle/documents ->
+                             coverage area -> review -> pending approval
+  /rider/dashboard           Today's summary, earnings snapshot, status
+                             toggle (online/offline)
+  /rider/requests            Dispatch request queue — accept/decline
+  /rider/active              Active delivery detail: pickup, drop-off,
+                             recipient info, status stepper
+  /rider/tracking            Live map view of current route (simulated
+                             position acceptable for MVP)
+  /rider/history             Completed deliveries, earnings history
+  /rider/settings            Profile, vehicle info, payout details
+
+ADMIN CONSOLE  (/admin/*)  — architected now, can ship a minimal v1
+--------------------------------------------------------------------------
+  /admin/dashboard           Platform KPIs (GMV, active vendors/riders,
+                             order volume)
+  /admin/vendors             Vendor list, approve/reject/suspend
+  /admin/riders              Rider list, approve/reject/suspend
+  /admin/products             Catalog moderation, flagged listings
+  /admin/orders               Full order lookup, dispute/refund actions
+  /admin/categories           Category tree management
+  /admin/lockers              OpenBox locker location management
+  /admin/promotions           Featured placements, banners, discount codes
+  /admin/users                User lookup, role management, support tools
+
+
+================================================================================
+4. FEATURES BY MODULE
+================================================================================
+
+4.1 Buyer / Marketplace
+--------------------------------------------------------------------------
+  - Category-driven browse + free-text search with filters (category,
+    price range, vendor, rating, in-stock only) and sort (relevance,
+    price, newest, rating)
+  - Product detail: image gallery, price, stock status, vendor link,
+    delivery estimate, reviews/ratings, related products
+  - Cart with quantity edit, multi-vendor cart support (split into
+    per-vendor sub-orders at checkout)
+  - Checkout: address selection, delivery method (home delivery vs
+    OpenBox pickup), payment, order review
+  - Order tracking: status stepper (Placed -> Confirmed -> Picked up ->
+    In transit -> Delivered) with live map when a rider is assigned
+  - Reviews and ratings per product, tied to verified purchase
+  - Wishlist / saved items
+  - Guest checkout supported, account creation encouraged post-purchase
+
+4.2 Seller / Vendor
+--------------------------------------------------------------------------
+  - Onboarding wizard with status tracking (pending/approved/rejected),
+    document upload stubbed until KYC provider is chosen
+  - Product upload: single-item form + bulk CSV import, image upload
+    with basic validation (aspect ratio guidance, size limits)
+  - Inventory management: stock levels, low-stock threshold alerts,
+    active/inactive toggle per SKU
+  - Order fulfilment queue scoped to vendor's own orders
+  - Sales analytics (orders over time, top-selling products, revenue) —
+    can run on generated data initially with identical schema to the
+    real analytics pipeline, so no rework later
+  - Payout settings (bank details captured now, actual payout automation
+    is a Phase 5 item)
+
+4.3 Rider / Dispatch
+--------------------------------------------------------------------------
+  - Onboarding wizard mirroring vendor's shape (personal info, vehicle
+    type, coverage area, documents, approval status)
+  - Dispatch request queue: incoming jobs with pickup/drop-off, distance,
+    estimated payout; accept/decline
+  - Active delivery screen: status stepper (Assigned -> Picked up ->
+    In transit -> Delivered), recipient contact, navigation hand-off
+  - Live tracking interface: map with animated marker along a route.
+    MVP acceptable approach: interpolate marker position along a
+    predefined polyline on a timer, driven by the same status-stepper
+    state, so it "reads" as live tracking without requiring a production
+    GPS integration on day one
+  - Earnings history and basic performance stats
+
+4.4 OpenBox (Package Lockers)
+--------------------------------------------------------------------------
+  - Persistent header/nav entry point (desktop header + mobile bottom tab)
+  - /openbox landing page: what OpenBox is, map of locker locations
+    (can be static/generated locations at MVP), "how it works" steps
+  - Checkout-time delivery method option: "Deliver to OpenBox locker,"
+    stored on the order (delivery_method field) even before a live
+    locker-availability API exists
+  - Architected as an external system integration point — this module's
+    job is to define the contract (see API section) so a real OpenBox
+    integration slots in without touching Orders/Checkout logic
+
+4.5 Admin
+--------------------------------------------------------------------------
+  - Vendor/Rider approval queue with document review and status change
+  - Catalog moderation: flag/remove listings, manage category tree
+  - Order oversight: search any order, initiate refund/dispute resolution
+  - Locker management: add/edit/deactivate OpenBox locker locations
+  - Promotions: featured product/vendor placement, banner management,
+    discount code creation
+  - Platform analytics: GMV, active users by role, order volume trends
+
+
+================================================================================
+5. DATABASE STRUCTURE (HIGH LEVEL)
+================================================================================
+
+users
+  id, name, email, phone, password_hash, created_at, updated_at
+
+user_roles
+  id, user_id (fk), role [buyer|vendor|rider|admin|support], created_at
+
+vendors
+  id, user_id (fk), business_name, category, description, logo_url,
+  status [pending|approved|rejected|suspended], payout_bank_name,
+  payout_account_number, created_at
+
+products
+  id, vendor_id (fk), name, description, category_id (fk), price,
+  stock_qty, status [active|inactive|out_of_stock], sku, created_at,
+  updated_at
+
+product_images
+  id, product_id (fk), url, sort_order
+
+categories
+  id, name, slug, parent_id (nullable, self-referencing for subcategories)
+
+orders
+  id, buyer_id (fk), status [placed|confirmed|processing|in_transit|
+  delivered|cancelled], delivery_method [home_delivery|openbox_pickup],
+  delivery_address_id (fk, nullable if openbox), locker_id (fk, nullable),
+  subtotal, delivery_fee, total, payment_status, created_at
+
+order_items
+  id, order_id (fk), product_id (fk), vendor_id (fk, denormalized for
+  fast vendor-order queries), qty, price_at_purchase
+
+addresses
+  id, user_id (fk), label, line1, line2, city, state, phone, is_default
+
+riders
+  id, user_id (fk), vehicle_type, coverage_area, status [pending|
+  approved|rejected|suspended], is_online, created_at
+
+dispatch_requests
+  id, order_id (fk), rider_id (fk, nullable until accepted),
+  pickup_address, dropoff_address, status [requested|accepted|
+  picked_up|in_transit|delivered|cancelled], estimated_payout,
+  route_polyline, created_at, updated_at
+
+rider_locations   (or a Redis-backed live store, persisted periodically)
+  id, rider_id (fk), dispatch_request_id (fk), lat, lng, recorded_at
+
+lockers   (OpenBox)
+  id, name, address, lat, lng, status [active|inactive], capacity,
+  created_at
+
+reviews
+  id, product_id (fk), buyer_id (fk), order_id (fk, for verified-purchase
+  check), rating, comment, created_at
+
+payments
+  id, order_id (fk), provider, provider_reference, amount, status,
+  created_at
+
+notifications
+  id, user_id (fk), type, payload (jsonb), read_at, created_at
+
+Indexing notes:
+  - products: index on (vendor_id), (category_id), full-text index on
+    (name, description) for search
+  - orders: index on (buyer_id), (status)
+  - order_items: index on (vendor_id) — this is what makes the vendor
+    order queue fast without scanning full orders
+  - dispatch_requests: index on (rider_id, status) for the request queue
+  - rider_locations: consider a Redis geo-set for "current position" and
+    only write to Postgres on status-change checkpoints, not every tick
+
+
+================================================================================
+6. API / MODULES REQUIRED
+================================================================================
+
+Auth Service
+  POST   /auth/signup
+  POST   /auth/login
+  POST   /auth/refresh
+  POST   /auth/logout
+  POST   /auth/forgot-password
+  POST   /auth/reset-password
+
+Catalog Service
+  GET    /categories
+  GET    /products                 (filters: category, price range,
+                                    vendor, rating, q, sort, page)
+  GET    /products/:id
+  GET    /vendors/:id/products
+  POST   /products/:id/reviews     (buyer, verified-purchase gated)
+
+Vendor Service
+  POST   /vendors/onboarding
+  GET    /vendors/me
+  PATCH  /vendors/me
+  POST   /vendors/me/products
+  PATCH  /vendors/me/products/:id
+  POST   /vendors/me/products/bulk-import
+  GET    /vendors/me/inventory
+  PATCH  /vendors/me/inventory/:productId
+  GET    /vendors/me/orders
+  PATCH  /vendors/me/orders/:id/status
+  GET    /vendors/me/analytics
+
+Order Service
+  POST   /cart/items | PATCH /cart/items/:id | DELETE /cart/items/:id
+  POST   /orders                   (creates order, splits into vendor
+                                    sub-orders internally)
+  GET    /orders/:id
+  GET    /orders                   (buyer's own orders)
+  POST   /orders/:id/cancel
+
+Payment Service
+  POST   /payments/initiate
+  POST   /payments/webhook         (provider callback, signature-verified)
+  GET    /payments/:orderId/status
+
+Rider / Dispatch Service
+  POST   /riders/onboarding
+  GET    /riders/me
+  PATCH  /riders/me/status          (online/offline toggle)
+  GET    /riders/me/requests
+  POST   /riders/me/requests/:id/accept
+  POST   /riders/me/requests/:id/decline
+  PATCH  /riders/me/active/:id/status  (status stepper progression)
+  POST   /riders/me/location         (periodic location ping — or via
+                                     websocket in real deployments)
+  GET    /riders/me/history
+
+Locker (OpenBox) Service
+  GET    /lockers                   (list/nearby, for map + checkout
+                                     selection)
+  GET    /lockers/:id
+  -- Future/external contract (placeholder now):
+  POST   /lockers/:id/reserve
+  GET    /lockers/:id/availability
+
+Admin Service
+  GET    /admin/vendors | PATCH /admin/vendors/:id/status
+  GET    /admin/riders  | PATCH /admin/riders/:id/status
+  GET    /admin/orders  | POST  /admin/orders/:id/refund
+  GET/POST/PATCH /admin/categories
+  GET/POST/PATCH /admin/lockers
+  GET/POST /admin/promotions
+  GET    /admin/analytics
+
+Notification Service
+  Internal event bus consumed to generate: order status emails/push,
+  dispatch request pushes to riders, vendor low-stock alerts, admin
+  approval-queue alerts.
+
+Realtime Gateway (WebSocket namespace)
+  /ws/orders/:id           order status + delivery position stream to buyer
+  /ws/rider/:id            incoming dispatch requests stream to rider
+  /ws/dispatch/:id         position stream for an active delivery
+
+
+================================================================================
+7. DEVELOPMENT PHASES (MVP -> PRODUCTION)
+================================================================================
+
+PHASE 1 — Foundations + Buyer Storefront (fully functional)
+--------------------------------------------------------------------------
+  - Auth, roles/permissions scaffold
+  - Database schema for users, products, categories, orders, addresses
+  - Home, Market/category, Search, PDP, Cart, Checkout (single payment
+    provider), Order confirmation, Order history + basic tracking
+  - Design system implementation (tokens, components) in brand colors
+  Deliverable: a real buyer can browse a seeded catalog and complete an
+  order end to end.
+
+PHASE 2 — Vendor Portal
+--------------------------------------------------------------------------
+  - Vendor onboarding wizard + approval status
+  - Product upload (single + bulk), inventory management
+  - Vendor order queue, basic analytics (generated data acceptable,
+    same schema as real data)
+  Deliverable: vendor can sign up, get "approved" (admin stub or
+  auto-approve for demo), list products that appear in the real catalog.
+
+PHASE 3 — Rider Portal + Dispatch
+--------------------------------------------------------------------------
+  - Rider onboarding wizard
+  - Dispatch request queue (generated jobs acceptable initially, or tied
+    to real Phase 1 orders once ready)
+  - Active delivery screen + status stepper
+  - Live tracking UI on simulated route data
+  Deliverable: a rider can accept a job and walk it through to
+  "delivered," with a believable live map.
+
+PHASE 4 — OpenBox Placeholder + Admin v1
+--------------------------------------------------------------------------
+  - Header/nav OpenBox button + /openbox landing page
+  - "Deliver to OpenBox locker" as a checkout option (stores
+    delivery_method + locker_id, no live integration required yet)
+  - Minimal admin console: vendor/rider approvals, order lookup,
+    category management
+  Deliverable: the full four-sided platform shape is visible and usable
+  end to end, even where some data is generated.
+
+PHASE 5 — Real-time + Production Hardening
+--------------------------------------------------------------------------
+  - Wire real-time websocket layer for order tracking + dispatch (replace
+    polling/simulation with live push where data exists)
+  - Real payment gateway integration, real KYC provider for vendor/rider
+    documents
+  - Replace simulated rider tracking with real device GPS feed
+  - OpenBox real API integration behind the already-defined contract
+  - Monitoring, error tracking, load testing, security review (auth
+    hardening, rate limiting, input validation audit)
+  - Full responsive/mobile QA, accessibility pass
+  Deliverable: production-ready public launch candidate.
+
+PHASE 6 — Post-launch iteration
+--------------------------------------------------------------------------
+  - Full admin analytics suite
+  - Promotions/discount engine
+  - Vendor payout automation
+  - Multi-payment-provider support
+  - (see Future Roadmap section for further items)
+
+
+================================================================================
+8. UI/UX GUIDELINES
+================================================================================
+
+8.1 Visual identity
+--------------------------------------------------------------------------
+  - Green = primary action (buy, confirm, success, "verified" states).
+  - Yellow = attention/highlight (badges, ratings, promotions) — used
+    sparingly, never as a large background fill, to avoid a "cluttered"
+    feel.
+  - Purple = "operator mode" signal — the moment a user is inside the
+    Vendor or Rider portal, the header/accent shifts to purple so the
+    context change is unmistakable without a jarring visual break.
+  - Neutrals carry the rest of the interface: near-white background,
+    near-black text, soft gray borders. The premium feel comes from
+    restraint, not saturation.
+
+8.2 Layout patterns (informed by E-Marts' structure, modernized)
+--------------------------------------------------------------------------
+  - Sticky header: logo, primary nav, search, account/cart icons, and a
+    distinct OpenBox pill button that's visually separated from normal
+    nav items (icon + label, not just a nav link).
+  - Hero: one clear headline + CTA, restrained motion (subtle parallax
+    or fade-in, not an aggressive carousel).
+  - Category rail directly under hero — icon + label, horizontally
+    scrollable, consistent icon sizing.
+  - Repeating "Section title — See all ->" content blocks for featured/
+    per-category product rails — reuse this single pattern everywhere
+    rather than inventing new block types per section.
+  - Product cards: fixed aspect-ratio image, vendor name (muted, small),
+    product name (bold), price (green), rating (yellow stars), consistent
+    padding and shadow depth across the whole app — this consistency is
+    what reads as "premium" rather than "templated."
+  - Multi-step forms (onboarding, checkout) use a persistent progress
+    indicator and never lose entered data on back-navigation.
+  - Empty states always pair a small illustration with one line of copy
+    and one clear action — never a bare blank page.
+
+8.3 Motion & interaction
+--------------------------------------------------------------------------
+  - Use motion purposefully: status-stepper transitions, cart-count
+    bump, skeleton loading states while data streams in. Avoid decorative
+    animation that adds latency to perceived load time.
+  - Real-time elements (order status, dispatch position) should animate
+    smoothly between states rather than snapping, so updates feel "alive"
+    rather than jarring.
+  - Skeleton loaders over spinners wherever a layout shape is already
+    known (product grids, tables) — spinners only for indeterminate
+    waits (payment processing).
+
+8.4 Responsiveness
+--------------------------------------------------------------------------
+  - Mobile-first breakpoints; bottom tab bar on mobile (Home, Market,
+    Cart, Orders, Account) with OpenBox reachable from a header icon or
+    as a 5th tab if usage data justifies it.
+  - Vendor/Rider portals should be usable on mobile web from day one —
+    riders in particular will be on-the-go and likely mobile-only.
+
+8.5 Accessibility
+--------------------------------------------------------------------------
+  - Color is never the sole signal (status also gets an icon/label, not
+    just a colored dot) — important given yellow/green/purple all need
+    to remain distinguishable for color-blind users.
+  - Minimum AA contrast for text against backgrounds; verify yellow-on-
+    white use cases specifically, as yellow tends to fail contrast checks
+    at low saturation.
+  - Full keyboard navigability on checkout and onboarding flows.
+
+
+================================================================================
+9. REAL-TIME FEATURES
+================================================================================
+
+  Feature                     Mechanism                    MVP approach
+  ---------------------------------------------------------------------
+  Order status updates        WebSocket push to buyer's     Can start as
+                              /ws/orders/:id channel        polling every
+                                                             10-15s, upgrade
+                                                             to push in
+                                                             Phase 5
+  Rider live position         Redis geo pub/sub -> WS       Simulated route
+                              stream to buyer + admin       interpolation on
+                                                             a timer, same
+                                                             channel shape as
+                                                             the real feed
+  Dispatch request delivery   WS push to online riders      Can start as
+                              in coverage area, fallback     short-poll from
+                              push notification              rider dashboard
+  Vendor low-stock alerts     Event-driven notification      Background job
+                              on stock_qty threshold cross    checking on
+                                                              write/interval
+  Admin approval queue        Notification on new vendor/    Simple polling
+                              rider application                acceptable
+
+Design principle: every "real-time" feature should be built behind an
+interface that doesn't care whether the data source is a live feed or a
+simulation/poll — this is what lets Phase 1-4 ship believable real-time UX
+without blocking on infrastructure that Phase 5 will properly wire up.
+
+
+================================================================================
+10. FUTURE ROADMAP (POST-MVP)
+================================================================================
+
+  - Native mobile apps (React Native) — particularly valuable for riders
+    (background location, push notifications) and for buyer retention
+  - Full OpenBox API integration: live locker availability, reservation,
+    and unlock-code delivery flow
+  - Automated vendor payouts (scheduled settlement, in-app payout history)
+  - Multi-payment-provider support + saved payment methods
+  - Advanced search: typo-tolerance, personalized ranking, "customers
+    also bought"
+  - Vendor subscription tiers (featured placement, lower commission at
+    higher tiers)
+  - Loyalty/rewards program for buyers
+  - Rider route optimization (batch multiple deliveries per trip)
+  - Admin-configurable commission structure per category/vendor
+  - Internationalization (multi-currency, multi-language) if expanding
+    beyond a single market
+  - Public API / webhook access for large vendors to integrate their own
+    inventory systems
+  - Data/analytics warehouse for platform-wide BI beyond the in-app
+    admin analytics
+
+================================================================================
+END OF DOCUMENT
+================================================================================
