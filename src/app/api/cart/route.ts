@@ -23,7 +23,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const items = cartItems.map((item) => ({
+    const items = cartItems.map((item: typeof cartItems[number]) => ({
       id: item.id,
       productId: item.productId,
       name: item.product.name,
@@ -36,7 +36,7 @@ export async function GET() {
       subtotal: item.product.price * item.qty,
     }));
 
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const total = items.reduce((sum: number, item: typeof items[number]) => sum + item.subtotal, 0);
 
     return NextResponse.json({ cart: items, total });
   } catch (error) {
