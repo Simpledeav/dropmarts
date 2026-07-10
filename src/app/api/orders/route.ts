@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     }
 
     // Calculate totals
-    const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.qty, 0);
+    const subtotal = cartItems.reduce((sum: number, item: typeof cartItems[number]) => sum + item.product.price * item.qty, 0);
     const deliveryFee = subtotal >= 50000 ? 0 : Math.max(1500, subtotal * 0.05);
     const total = subtotal + deliveryFee;
 
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         total,
         paymentStatus: "pending",
         items: {
-          create: cartItems.map((item) => ({
+          create: cartItems.map((item: typeof cartItems[number]) => ({
             productId: item.productId,
             vendorId: item.product.vendorId,
             qty: item.qty,

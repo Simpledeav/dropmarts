@@ -41,7 +41,7 @@ export async function GET(
     // Calculate average rating
     const avgRating =
       product.reviews.length > 0
-        ? product.reviews.reduce((sum, r) => sum + r.rating, 0) /
+        ? product.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
           product.reviews.length
         : null;
 
@@ -71,7 +71,7 @@ export async function GET(
         stockQty: product.stockQty,
         status: product.stockQty > 0 ? product.status : "out_of_stock",
         sku: product.sku,
-        images: product.images.map((img) => ({
+        images: product.images.map((img: typeof product.images[number]) => ({
           id: img.id,
           url: img.url,
           sortOrder: img.sortOrder,
@@ -80,7 +80,7 @@ export async function GET(
         vendor: product.vendor,
         rating: avgRating,
         reviewCount: product.reviews.length,
-        reviews: product.reviews.map((r) => ({
+        reviews: product.reviews.map((r: typeof product.reviews[number]) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment,
@@ -89,7 +89,7 @@ export async function GET(
         })),
         createdAt: product.createdAt,
       },
-      relatedProducts: relatedProducts.map((p) => ({
+      relatedProducts: relatedProducts.map((p: typeof relatedProducts[number]) => ({
         id: p.id,
         name: p.name,
         price: p.price,

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      products: products.map((p) => ({
+      products: products.map((p: typeof products[number]) => ({
         id: p.id,
         name: p.name,
         price: p.price,

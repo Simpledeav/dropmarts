@@ -27,14 +27,14 @@ export async function GET() {
     });
 
     const totalEarnings = completed
-      .filter((d) => d.status === "delivered")
-      .reduce((sum, d) => sum + (d.estimatedPayout || 0), 0);
+      .filter((d: typeof completed[number]) => d.status === "delivered")
+      .reduce((sum: number, d: typeof completed[number]) => sum + (d.estimatedPayout || 0), 0);
 
-    const totalDeliveries = completed.filter((d) => d.status === "delivered").length;
+    const totalDeliveries = completed.filter((d: typeof completed[number]) => d.status === "delivered").length;
     const totalDistance = completed.length * 5; // Simulated: 5km per delivery
 
     return NextResponse.json({
-      history: completed.map((d) => ({
+      history: completed.map((d: typeof completed[number]) => ({
         id: d.id,
         orderId: d.orderId,
         status: d.status,

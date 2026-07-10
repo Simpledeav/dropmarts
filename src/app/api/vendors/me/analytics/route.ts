@@ -39,19 +39,19 @@ export async function GET() {
 
     // Compute metrics
     const totalProducts = products.length;
-    const activeProducts = products.filter((p) => p.status === "active" || p.status === "in_stock").length;
-    const lowStockProducts = products.filter((p) => p.stockQty > 0 && p.stockQty <= 5).length;
-    const outOfStockProducts = products.filter((p) => p.stockQty <= 0).length;
+    const activeProducts = products.filter((p: typeof products[number]) => p.status === "active" || p.status === "in_stock").length;
+    const lowStockProducts = products.filter((p: typeof products[number]) => p.stockQty > 0 && p.stockQty <= 5).length;
+    const outOfStockProducts = products.filter((p: typeof products[number]) => p.stockQty <= 0).length;
 
     const totalOrders = orderItems.length;
-    const completedOrders = orderItems.filter((oi) => oi.order.status === "delivered").length;
-    const pendingOrders = orderItems.filter((oi) =>
+    const completedOrders = orderItems.filter((oi: typeof orderItems[number]) => oi.order.status === "delivered").length;
+    const pendingOrders = orderItems.filter((oi: typeof orderItems[number]) =>
       ["placed", "confirmed", "processing"].includes(oi.order.status)
     ).length;
 
     const totalRevenue = orderItems
-      .filter((oi) => oi.order.status === "delivered")
-      .reduce((sum, oi) => sum + oi.priceAtPurchase * oi.qty, 0);
+      .filter((oi: typeof orderItems[number]) => oi.order.status === "delivered")
+      .reduce((sum: number, oi: typeof orderItems[number]) => sum + oi.priceAtPurchase * oi.qty, 0);
 
     // Generate 30 days of sales data for chart
     const salesData: Array<{ date: string; sales: number; orders: number }> = [];
@@ -61,15 +61,15 @@ export async function GET() {
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
 
-      const dayOrders = orderItems.filter((oi) => {
+      const dayOrders = orderItems.filter((oi: typeof orderItems[number]) => {
         const oDate = oi.order.createdAt.toISOString().split("T")[0];
         return oDate === dateStr;
       });
 
       salesData.push({
         date: dateStr,
-        sales: dayOrders.reduce((sum, oi) => sum + oi.priceAtPurchase * oi.qty, 0),
-        orders: new Set(dayOrders.map((oi) => oi.orderId)).size,
+        sales: dayOrders.reduce((sum: number, oi: typeof orderItems[number]) => sum + oi.priceAtPurchase * oi.qty, 0),
+        orders: new Set(dayOrders.map((oi: typeof orderItems[number]) => oi.orderId)).size,
       });
     }
 
@@ -77,7 +77,7 @@ export async function GET() {
     const productSales = new Map<string, { name: string; qty: number; revenue: number }>();
     for (const oi of orderItems) {
       if (!productSales.has(oi.productId)) {
-        const p = products.find((pr) => pr.id === oi.productId);
+        const p = products.find((pr: typeof products[number]) => pr.id === oi.productId);
         productSales.set(oi.productId, { name: p?.name || "Unknown", qty: 0, revenue: 0 });
       }
       const ps = productSales.get(oi.productId)!;
@@ -86,14 +86,14 @@ export async function GET() {
     }
 
     const topProducts = Array.from(productSales.entries())
-      .map(([id, data]) => ({ id, ...data }))
+      .map(([id, data]: [string, { name: string; qty: number; revenue: number }]) => ({ id, ...data }))
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 10);
 
     // Category breakdown
     const categorySales = new Map<string, number>();
     for (const oi of orderItems) {
-      const p = products.find((pr) => pr.id === oi.productId);
+      const p = products.find((pr: typeof products[number]) => pr.id === oi.productId);
       const cat = p?.name?.split(" ")[0] || "Other";
       categorySales.set(cat, (categorySales.get(cat) || 0) + oi.priceAtPurchase * oi.qty);
     }
@@ -111,8 +111,8 @@ export async function GET() {
       },
       salesData,
       topProducts,
-      categoryBreakdown: Array.from(categorySales.entries()).map(([name, value]) => ({ name, value })),
-      recentOrders: recentOrders.map((oi) => ({
+      categoryBreakdown: Array.from(categorySales.entries()).map(([name, value]: [string, number]) => ({ name, value })),
+      recentOrders: recentOrders.map((oi: typeof recentOrders[number]) => ({
         id: oi.orderId,
         product: oi.product.name,
         buyerName: oi.order.buyer.name,

@@ -18,7 +18,7 @@ export async function GET() {
       orderBy: { stockQty: "asc" },
     });
 
-    const inventory = products.map((p) => ({
+    const inventory = products.map((p: typeof products[number]) => ({
       id: p.id,
       name: p.name,
       sku: p.sku,
