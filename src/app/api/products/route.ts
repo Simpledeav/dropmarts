@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +14,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20");
     const inStock = searchParams.get("inStock") === "true";
 
-    const where: Prisma.ProductWhereInput = {
+    const where: Record<string, any> = {
       status: "active",
     };
 
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine sort order
-    let orderBy: Prisma.ProductOrderByWithRelationInput = {};
+    let orderBy: Record<string, string> = {};
     switch (sort) {
       case "price_asc":
         orderBy = { price: "asc" };
