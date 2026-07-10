@@ -15,7 +15,7 @@ export async function GET() {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        roles: user.roles.map((r) => r.role),
+        roles: user.roles.map((r: { role: string }) => r.role),
         vendor: user.vendor
           ? {
               id: user.vendor.id,

@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     });
 
     // Add vendor role if not already present
-    const hasVendorRole = user.roles.some((r) => r.role === "vendor");
+    const hasVendorRole = user.roles.some((r: { role: string }) => r.role === "vendor");
     if (!hasVendorRole) {
       await prisma.userRole.create({
         data: {

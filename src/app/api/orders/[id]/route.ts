@@ -54,8 +54,8 @@ export async function GET(
     }
 
     // Ensure user owns this order, is admin, or is a vendor with items in this order
-    const isAdmin = user.roles.some((r) => r.role === "admin");
-    const isVendorInOrder = user.vendor && order.items.some((i) => i.vendorId === user.vendor!.id);
+    const isAdmin = user.roles.some((r: { role: string }) => r.role === "admin");
+    const isVendorInOrder = user.vendor && order.items.some((i: { vendorId: string }) => i.vendorId === user.vendor!.id);
     if (order.buyerId !== user.id && !isAdmin && !isVendorInOrder) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

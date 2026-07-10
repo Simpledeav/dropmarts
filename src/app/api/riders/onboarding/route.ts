@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const hasRiderRole = user.roles.some((r) => r.role === "rider");
+    const hasRiderRole = user.roles.some((r: { role: string }) => r.role === "rider");
     if (!hasRiderRole) {
       await prisma.userRole.create({
         data: { userId: user.id, role: "rider" },

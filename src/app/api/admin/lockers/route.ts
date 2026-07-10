@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET() {
   try {
     const user = await getCurrentUser();
-    if (!user?.roles.some((r) => r.role === "admin")) {
+    if (!user?.roles.some((r: { role: string }) => r.role === "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user?.roles.some((r) => r.role === "admin")) {
+    if (!user?.roles.some((r: { role: string }) => r.role === "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user?.roles.some((r) => r.role === "admin")) {
+    if (!user?.roles.some((r: { role: string }) => r.role === "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

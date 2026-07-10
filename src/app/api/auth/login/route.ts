@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const token = signToken({
       userId: user.id,
       email: user.email,
-      roles: user.roles.map((r) => r.role),
+      roles: user.roles.map((r: { role: string }) => r.role),
     });
 
     const response = NextResponse.json({
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        roles: user.roles.map((r) => r.role),
+        roles: user.roles.map((r: { role: string }) => r.role),
       },
       token,
     });

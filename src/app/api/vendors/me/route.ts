@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isVendor = user.roles.some((r) => r.role === "vendor");
+    const isVendor = user.roles.some((r: { role: string }) => r.role === "vendor");
     if (!isVendor || !user.vendor) {
       return NextResponse.json({ error: "Vendor profile not found" }, { status: 404 });
     }
@@ -38,7 +38,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isVendor = user.roles.some((r) => r.role === "vendor");
+    const isVendor = user.roles.some((r: { role: string }) => r.role === "vendor");
     if (!isVendor || !user.vendor) {
       return NextResponse.json({ error: "Vendor profile not found" }, { status: 404 });
     }
