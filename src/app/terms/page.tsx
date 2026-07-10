@@ -75,7 +75,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-xl font-bold text-text-primary mb-3">8. Contact</h2>
             <p className="text-text-secondary leading-relaxed">
-              For questions about these terms, please contact us at legal@dropmart.com.
+              For questions about these terms, please contact us at legal@openbox.com.
             </p>
           </div>
         </div>

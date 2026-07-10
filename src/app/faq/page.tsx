@@ -8,8 +8,8 @@ const faqData = [
   {
     category: "General",
     questions: [
-      { q: "What is Dropmart?", a: "Dropmart is Nigeria's all-in-one marketplace connecting buyers, vendors, and riders. We provide a trusted platform for shopping, selling, and delivery services." },
-      { q: "Is Dropmart free to use?", a: "Creating an account and browsing products is completely free. Vendors and riders can join for free, with competitive commission rates on successful sales." },
+      { q: "What is Openbox?", a: "Openbox is Nigeria's all-in-one marketplace connecting buyers, vendors, and riders. We provide a trusted platform for shopping, selling, and delivery services." },
+      { q: "Is Openbox free to use?", a: "Creating an account and browsing products is completely free. Vendors and riders can join for free, with competitive commission rates on successful sales." },
       { q: "How do I get started?", a: "Simply create an account, choose your role (buyer, vendor, or rider), and start exploring. Buyers can shop immediately, vendors can set up their store, and riders can start accepting deliveries." },
     ],
   },
@@ -67,7 +67,7 @@ export default function FAQPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Frequently Asked Questions</h1>
           <p className="text-lg text-gray-300 mb-8">
-            Everything you need to know about Dropmart
+            Everything you need to know about Openbox
           </p>
           <div className="relative max-w-xl mx-auto">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />

@@ -60,7 +60,7 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Simple, Transparent Pricing</h1>
           <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-            Join Dropmart for free. No hidden fees. No surprises.
+            Join Openbox for free. No hidden fees. No surprises.
           </p>
         </div>
       </section>

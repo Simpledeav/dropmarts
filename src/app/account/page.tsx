@@ -100,7 +100,7 @@ export default function AccountPage() {
     },
     {
       icon: Store,
-      label: "Sell on Dropmart",
+      label: "Sell on Openbox",
       href: "/vendor/dashboard",
       description: "Vendor portal",
       accent: "text-brand-purple",

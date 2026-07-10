@@ -112,7 +112,7 @@ function LoginForm() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-primary font-medium">Admin</span>
-            <span className="text-text-muted">admin@dropmart.com / admin123</span>
+            <span className="text-text-muted">admin@openbox.com / admin123</span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-text-primary font-medium">Buyer</span>

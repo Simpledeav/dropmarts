@@ -74,7 +74,7 @@ export default function PrivacyPage() {
           <div>
             <h2 className="text-xl font-bold text-text-primary mb-3">5. Contact</h2>
             <p className="text-text-secondary leading-relaxed">
-              For privacy-related inquiries, contact us at privacy@dropmart.com.
+              For privacy-related inquiries, contact us at privacy@openbox.com.
             </p>
           </div>
         </div>

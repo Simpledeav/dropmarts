@@ -27,7 +27,7 @@ export default function ContactPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 -mt-8 relative z-10">
         <div className="grid md:grid-cols-3 gap-8 mb-12">
           {[
-            { icon: Mail, label: "Email", value: "hello@dropmart.com", desc: "We respond within 24 hours" },
+            { icon: Mail, label: "Email", value: "hello@openbox.com", desc: "We respond within 24 hours" },
             { icon: Phone, label: "Phone", value: "+234 800 123 4567", desc: "Mon-Fri, 8AM-6PM" },
             { icon: MapPin, label: "Office", value: "Lagos, Nigeria", desc: "Visit us by appointment" },
           ].map((item) => (

@@ -45,7 +45,7 @@ async function main() {
   await prisma.user.create({
     data: {
       name: "Admin User",
-      email: "admin@dropmart.com",
+      email: "admin@openbox.com",
       phone: "+234 800 000 0000",
       passwordHash: pwd.admin,
       roles: { create: [{ role: "admin" }, { role: "buyer" }] },
@@ -282,7 +282,7 @@ async function main() {
 
   console.log("\n🎉 Seed completed successfully!");
   console.log("\n📝 Demo Accounts:");
-  console.log("   Admin: admin@dropmart.com / admin123");
+  console.log("   Admin: admin@openbox.com / admin123");
   console.log("   Buyer: john@example.com / buyer123");
   console.log("   Vendor: chioma@techstore.com / vendor123");
   console.log("   Rider: kelechi@rider.com / rider123");

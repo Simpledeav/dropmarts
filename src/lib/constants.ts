@@ -1,5 +1,5 @@
 export const BRAND = {
-  name: "Dropmart",
+  name: "Openbox",
   tagline: "Shop. Sell. Deliver. Connected.",
   description:
     "The all-in-one marketplace connecting buyers, sellers, and riders.",

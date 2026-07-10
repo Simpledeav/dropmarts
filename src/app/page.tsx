@@ -471,7 +471,7 @@ export default function HomePage() {
       </section>
 
       {/* ───── STATS ───── */}
-      <AnimatedSection delay={200}>
+      {/* <AnimatedSection delay={200}>
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-24">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
@@ -500,7 +500,7 @@ export default function HomePage() {
             })}
           </div>
         </section>
-      </AnimatedSection>
+      </AnimatedSection> */}
 
       {/* ───── CTA ───── */}
       <AnimatedSection delay={200}>
