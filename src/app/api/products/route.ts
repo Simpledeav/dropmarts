@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where }),
     ]);
 
-    const productsWithRating = products.map((product) => {
+    const productsWithRating = products.map((product: typeof products[number]) => {
       const avgRating =
         product.reviews.length > 0
           ? product.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
